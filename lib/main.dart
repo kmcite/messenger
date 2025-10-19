@@ -1,84 +1,37 @@
-import 'package:messenger/auth/authentication_bloc.dart';
-import 'package:messenger/auth/authentication_page.dart';
-import 'package:messenger/chats/chats_bloc.dart';
-import 'package:messenger/chats/chats_repository.dart';
-import 'package:messenger/messages/messages_bloc.dart';
-import 'package:messenger/messages/messages_repository.dart';
-import 'package:messenger/navigator.dart';
-import 'package:messenger/users/users_bloc.dart';
-import 'package:messenger/users/users_repository.dart';
-import 'package:provider/provider.dart';
+import 'package:messenger/utils/messages.dart';
 
 import 'main.dart';
-import 'objectbox.g.dart';
+import 'package:messenger/messenger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+export 'package:flutter/material.dart';
+export 'package:manager_client/manager_client.dart'
+    hide Application, VoidCallback;
+export 'package:spark/spark.dart';
+
+export 'package:messenger/utils/authentication.dart';
 export 'dart:async';
 export 'dart:core';
-export 'package:flex_color_scheme/flex_color_scheme.dart';
-export 'package:freezed_annotation/freezed_annotation.dart';
-export 'package:manager/manager.dart';
-export 'package:messenger/chats/chats_page.dart';
-export 'package:messenger/settings/settings_page.dart';
-export 'package:messenger/settings/theme_mode.dart';
-export 'package:states_rebuilder/states_rebuilder.dart';
 export 'package:uuid/uuid.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() => runApp(MessengerApp());
 
-  await RM.storageInitializer(HiveStorage());
-  final appInfo = await PackageInfo.fromPlatform();
-  store = await openStore(
-    directory: join(
-      (await getApplicationDocumentsDirectory()).path,
-      appInfo.appName,
-    ),
-  );
-  runApp(
-    MultiProvider(
-      providers: [
-        // Repositories
-        Provider(create: (_) => UsersRepository()),
-        Provider(create: (_) => MessagesRepository()),
-        Provider(create: (_) => NavigationRepository()),
-        Provider(create: (_) => AuthenticationRepository()),
-        Provider(create: (_) => ChatsRepository()),
+const localhost = '127.0.0.1';
 
-        // Notifiers
-        ChangeNotifierProvider(create: NavigationController.new),
-        ChangeNotifierProvider(create: AuthenticationBloc.new),
-        ChangeNotifierProvider(create: (context) => UsersController(context)),
-        ChangeNotifierProvider(create: ChatsBloc.new),
-        ChangeNotifierProvider(create: MessagesBloc.new),
-        ChangeNotifierProvider(create: ThemeModeController.new),
-      ],
-      child: App(),
-    ),
-  );
-}
-
-late Store store;
-
-class App extends UI {
-  const App({super.key});
+class MessengerApp extends Application {
+  @override
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    const serverUrlFromEnv = String.fromEnvironment('SERVER_URL');
+    final serverUrl =
+        serverUrlFromEnv.isEmpty ? 'http://$localhost:8080/' : serverUrlFromEnv;
+    final client = Client(serverUrl);
+    putService(prefs);
+    putService(client);
+    putRepository(AuthentictaionRepository());
+    putRepository(MessagesRepository());
+  }
 
   @override
-  Widget build(context) {
-    return MaterialApp(
-      navigatorKey: context.of<NavigationController>().key,
-      debugShowCheckedModeBanner: false,
-      onGenerateRoute: (_) {
-        return MaterialPageRoute(
-          builder: (context) {
-            return context.of<AuthenticationBloc>().isAuthenticated
-                ? ChatsPage()
-                : AuthenticationPage();
-          },
-        );
-      },
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      themeMode: context.of<ThemeModeController>().themeMode,
-    );
-  }
+  Widget buildApp(BuildContext context) => MessengerView();
 }
