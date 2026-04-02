@@ -1,37 +1,62 @@
-import 'package:messenger/utils/messages.dart';
+import 'package:messenger/auth/auth_state.dart';
+import 'package:messenger/utils/db.dart';
+import 'package:messenger/utils/ui.dart';
 
 import 'main.dart';
-import 'package:messenger/messenger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 export 'package:flutter/material.dart';
-export 'package:manager_client/manager_client.dart'
-    hide Application, VoidCallback;
-export 'package:spark/spark.dart';
 
-export 'package:messenger/utils/authentication.dart';
 export 'dart:async';
 export 'dart:core';
 export 'package:uuid/uuid.dart';
+import 'package:forui/forui.dart';
+import 'package:messenger/auth/login.dart';
+import 'package:messenger/settings/settings_state.dart';
+import 'package:messenger/navigation/navigator_key.dart';
+import 'package:messenger/messages/home.dart';
 
-void main() => runApp(MessengerApp());
+void main() => runApp(MessengerApplication());
 
-const localhost = '127.0.0.1';
-
-class MessengerApp extends Application {
+class MessengerApplication extends AppUI {
+  const MessengerApplication({super.key});
   @override
-  Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    const serverUrlFromEnv = String.fromEnvironment('SERVER_URL');
-    final serverUrl =
-        serverUrlFromEnv.isEmpty ? 'http://$localhost:8080/' : serverUrlFromEnv;
-    final client = Client(serverUrl);
-    putService(prefs);
-    putService(client);
-    putRepository(AuthentictaionRepository());
-    putRepository(MessagesRepository());
+  void init(BuildContext context) {
+    initialize();
+    authenticationEffect!();
   }
 
   @override
-  Widget buildApp(BuildContext context) => MessengerView();
+  void dispose() {
+    authenticationEffect?.dispose();
+    authenticationEffect = null;
+  }
+
+  @override
+  Widget build(context) {
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.light(useMaterial3: false).copyWith(
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(),
+        ),
+      ),
+      darkTheme: ThemeData.dark(useMaterial3: false).copyWith(
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(),
+        ),
+      ),
+      builder: (context, child) => FTheme(
+        data: FThemeData(
+          colors: darkSignal()
+              ? FThemes.yellow.dark.colors
+              : FThemes.green.light.colors,
+          typography: FTypography(defaultFontFamily: 'Monaspace Argon'),
+        ),
+        child: child!,
+      ),
+      themeMode: darkSignal() ? ThemeMode.dark : ThemeMode.light,
+      home: authenticatedSignal() ? MessagesPage() : LoginPage(),
+    );
+  }
 }
